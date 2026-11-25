@@ -385,3 +385,6 @@ body.gm-layout.gm-page .footer-v2-card:first-child .footer-v2-operator { margin-
 @media (max-width: 900px) {
   body.gm-layout.gm-page .footer-v2-card:first-child { padding: 20px 18px 22px; }
 }
+
+/* Store block: a hidden item (App Store not found) must really disappear, the button row stays centred */
+.gm-store[hidden] { display: none !important; }

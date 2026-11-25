@@ -81,7 +81,9 @@
   const itemName = ((document.querySelector(".app-title .title, #gameTitle, h1") || {}).textContent || current).trim();
   const links = {
     play: "https://play.google.com/store/search?q=" + encodeURIComponent(itemName) + "&c=apps",
-    apple: "https://apps.apple.com/us/search?term=" + encodeURIComponent(itemName),
+    // Default: the App Store's own search page for this name (apps.apple.com/us/iphone/search works; /us/search returns 404).
+    // storeBlock() upgrades it to the exact app link when Apple's lookup finds an app with the same name.
+    apple: "https://apps.apple.com/us/iphone/search?term=" + encodeURIComponent(itemName),
   };
   const qrReady = new Promise((resolve) => {
     if (window.qrcode) return resolve(true);
@@ -109,10 +111,31 @@
     wrap.innerHTML = item("play", "Google Play", "&#9654;") + item("apple", "App Store", "A");
     const refresh = () => wrap.querySelectorAll(".gm-store").forEach((el) => {
       const a = el.querySelector("a");
-      a.href = links[a.dataset.store];
-      renderQr(el.querySelector("img"), links[a.dataset.store]);
+      const url = links[a.dataset.store];
+      if (!url) return;
+      a.href = url;
+      renderQr(el.querySelector("img"), url);
     });
     refresh();
+    // App Store: ask Apple's public iTunes Search API for this exact app. The button appears only for a real match
+    // (same name, or "Name: subtitle"); otherwise it stays hidden instead of sending visitors to unrelated search results.
+    const norm = (s) => String(s).toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
+    const wantLower = itemName.toLowerCase().trim();
+    const sameApp = (trackName) => {
+      const tn = String(trackName || "").toLowerCase().trim();
+      return norm(tn) === norm(wantLower) ||
+        (norm(wantLower).length >= 6 && [": ", " - ", " – ", " | "].some((sep) => tn.startsWith(wantLower + sep)));
+    };
+    fetch("https://itunes.apple.com/search?entity=software&limit=10&country=us&term=" + encodeURIComponent(itemName))
+      .then((r) => r.json())
+      .then((d) => {
+        const hit = (d.results || []).find((x) => sameApp(x.trackName));
+        if (hit && hit.trackViewUrl) {
+          links.apple = hit.trackViewUrl.split("?")[0];
+          refresh();
+        }
+      })
+      .catch(() => {});
     // App/Store pages keep the real Google Play link on their download page: use it when found
     if (kind !== "playgames" && path.indexOf("/download") < 0) {
       fetch(new URL("download/index.html", location.href).href)
@@ -197,7 +220,8 @@
 
   // ---- Side columns, strip, Similar, Editor's Choice ----
   const getCat = (k) => fetch(root + SOURCES[k].url).then((r) => r.json()).then((raw) => raw.map(SOURCES[k].norm).filter(Boolean)).catch(() => []);
-  const keys = Array.from(new Set([kind].concat(kind === "app" ? [] : ["topgames"])));
+  // Play-games pages also need the Store catalogue for the mixed Trending box; no other page type needs a second catalogue
+  const keys = Array.from(new Set([kind].concat(kind === "playgames" ? ["topgames"] : [])));
   Promise.all(keys.map(getCat))
     .then((res) => {
       const cats = {};
@@ -215,6 +239,9 @@
       // Pinned trending names (matched against the Store catalogue); the rest rotate
       const TRENDING_NAMES = ["delta force", "once human", "pubg", "free fire", "call of duty", "first light", "horizon 3", "cyberpunk", "the elder scrolls", "forza horizon 6", "resident evil requiem", "fortnite", "minecraft", "war thunder", "resident evil 9", "god of war egypt", "red dead redemption 2", "elden ring", "the legend of zelda", "arknights endfield", "pokemon champions", "castlevania belmonts curse", "roblox", "asphalt 8", "subway surfers", "candy crush", "block blast", "angry birds", "ludo king", "my talking tom"];
       const nz = (s) => String(s).toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
+      // Play-games pages mix two kinds of icons: half top store games (pinned names first), half our own playable games.
+      // Apps pages use their own app list.
+      const mixed = kind === "playgames"; // only the Trending box on Play-games pages mixes store + playable games
       const storeList = kind === "app" ? [] : (cats.topgames || []).filter((g) => !(kind === "topgames" && g.slug.toLowerCase() === current));
       const pinned = [];
       TRENDING_NAMES.forEach((q) => {
@@ -222,7 +249,29 @@
         if (hit) pinned.push(hit);
       });
       const fillers = (kind === "app" ? list : storeList).filter((g) => !pinned.includes(g)).slice(0, 120);
+      const playablePool = (kind === "playgames" ? list : []).slice(0, 120);
+      // Mixed Trending (Play games pages): store, playable, store, playable ... so every second icon is a game that really plays.
+      const mixedAt = (t) => {
+        const slot = Math.floor(t / ROTATE_MS);
+        const HALF = Math.floor(TREND_COUNT / 2);
+        const store = pinned.slice(0, HALF);
+        const need = HALF - store.length;
+        if (need > 0 && fillers.length) {
+          const s = (slot * Math.max(need, 3)) % fillers.length;
+          for (let i = 0; i < need; i++) store.push(fillers[(s + i) % fillers.length]);
+        }
+        const ps = (slot * HALF) % Math.max(playablePool.length, 1);
+        const play = Array.from({ length: TREND_COUNT - HALF }, (_, i) => playablePool[(ps + i) % playablePool.length]).filter(Boolean);
+        const out = [];
+        for (let i = 0; i < TREND_COUNT; i++) {
+          const idx = i >> 1;
+          const g = i % 2 === 0 ? store[idx] : play[idx];
+          if (g) out.push(i % 2 === 0 ? Object.assign({}, g, { isStore: true }) : g);
+        }
+        return out;
+      };
       const trendingAt = (t) => {
+        if (mixed) return mixedAt(t);
         const fixed = pinned.slice(0, TREND_COUNT);
         const need = TREND_COUNT - fixed.length;
         if (!fillers.length) return fixed;
@@ -232,7 +281,14 @@
       const newest = list.slice(-30).reverse();
       const left = document.createElement("aside");
       left.className = "gm-side-left";
-      left.innerHTML = grid("Trending " + noun, trendingAt(Date.now())) + grid("Newest " + noun, newest);
+      // On Play-games pages: a playable icon opens that game's Play page, a store icon opens that store game's own page
+      // (topgames/<game>/). Every other page type keeps each item's own link.
+      const trendHref = (g) =>
+        mixed && !g.isStore
+          ? root + "playgames/" + encodeURIComponent(g.slug) + "/play/index.html"
+          : g.href;
+      const trendTiles = (arr) => arr.map((g) => Object.assign({}, g, { href: trendHref(g) }));
+      left.innerHTML = grid("Trending " + noun, trendTiles(trendingAt(Date.now()))) + grid("Newest " + noun, newest);
       const pageLeft = detail.querySelector(".page-left");
       detail.insertBefore(left, pageLeft);
 
@@ -241,11 +297,11 @@
         const next = trendingAt(Date.now());
         Array.from(trendGrid.children).forEach((a, i) => {
           const g = next[i];
-          if (!g || a.getAttribute("href") === g.href) return;
+          if (!g || (a.querySelector("img") || {}).alt === g.name) return; // same game already shown (links can be identical, so compare the game)
           a.style.transition = "opacity .4s";
           a.style.opacity = "0";
           setTimeout(() => {
-            a.href = g.href;
+            a.href = trendHref(g);
             a.title = g.name;
             const im = a.querySelector("img");
             im.alt = g.name;

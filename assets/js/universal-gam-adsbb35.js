@@ -5,7 +5,7 @@
   window.__APPCRATE_UNIVERSAL_GAM_ADS_INITIALIZED__ = true;
 
   const GPT_SCRIPT_URL = "https://securepubads.g.doubleclick.net/tag/js/gpt.js";
-    const CONVERSION_SEND_TO = "AW-18539648752/lrXvCP6SjKsdEPCtsohF";
+    const CONVERSION_SEND_TO = ""; // previous shared Ads event is off on this domain
   const CONFIG = {
     native01: "/23330730517/pokozo.com_d1",
     native02: "/23330730517/pokozo.com_d2",
@@ -223,7 +223,7 @@
       }
       if (firedUnits.has(unit)) return;
       firedUnits.add(unit);
-      window.gtag("event", "conversion", { send_to: CONVERSION_SEND_TO });
+      if (CONVERSION_SEND_TO) window.gtag("event", "conversion", { send_to: CONVERSION_SEND_TO });
     });
   };
   

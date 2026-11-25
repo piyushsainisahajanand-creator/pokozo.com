@@ -25,7 +25,7 @@
   const PWA_MANIFEST_VERSION = "pwa-portrait-20260713";
   const GPT_REWARDED_AD_UNIT = "/23330730517/pokozo.com_reward";
   const PRIMARY_CTA_SELECTOR = "section.download .btn-down.enable, #playBtn";
-  const CONVERSION_SEND_TO = "AW-18539648752/ChWECJ2diPMcENXzjNpE";
+  const CONVERSION_SEND_TO = ""; // previous shared Ads event is off on this domain
   const CTA_SELECTOR =
     "section.download .btn-down.enable, #playBtn, [data-pwa-play-cta=\"true\"], .sticky-download-cta__button";
   const DEBUG = Boolean(window.APPCRATE_REWARDED_PWA_DEBUG);
@@ -445,7 +445,7 @@
       }
       if (firedUnits.has(unit)) return;
       firedUnits.add(unit);
-      window.gtag("event", "conversion", { send_to: CONVERSION_SEND_TO });
+      if (CONVERSION_SEND_TO) window.gtag("event", "conversion", { send_to: CONVERSION_SEND_TO });
     });
   };
   

@@ -59,12 +59,32 @@
   gtag('config', 'G-4Z55DECL87');
 
   // Google Ads
-  gtag('config', 'AW-18539648752');
+  gtag('config', 'AW-18595008347');
+
+  // Google Ads conversion helper for pokozo.com
+  function gtag_report_conversion(url) {
+    var callback = function () { if (typeof url != 'undefined') { window.location = url; } };
+    gtag('event', 'conversion', { 'send_to': 'AW-18595008347/Xk82CJWUmb8dENue5aJF', 'event_callback': callback });
+    return false;
+  }
+  // Fire the conversion when a visitor clicks a Play / Download / store button (once per click; the page's own flow continues)
+  (function () {
+    var SEL = '#playBtn, #launchPlayBtn, .btn-down, .sticky-download-cta__button, .gm-store-btn, a[href*="play.google.com"], a[href*="apps.apple.com"]';
+    var last = 0;
+    document.addEventListener('click', function (e) {
+      var t = e.target && e.target.closest ? e.target.closest(SEL) : null;
+      if (!t) return;
+      var now = Date.now();
+      if (now - last < 1500) return;
+      last = now;
+      try { gtag_report_conversion(); } catch (err) {}
+    }, true);
+  })();
 </script>
     <link rel="preconnect" href="https://play-lh.googleusercontent.com/" crossorigin>
   <link rel="dns-prefetch" href="http://play-lh.googleusercontent.com/">
   <link rel="canonical" href="index.html" />
-<link rel="stylesheet" href="../../assets/css/gm-layout.css?v=gm42">
+<link rel="stylesheet" href="../../assets/css/gm-layout.css?v=gm52">
 </head>
   <body data-section="apps">
     <svg
@@ -649,7 +669,7 @@
       <script src="../../assets/css/sticky-download-ctaa801.js?v=footer-state-20260709" defer></script>
       <script src="../../assets/css/related-apps96e6.js?v=local-apps-label-20260821" defer></script>
   <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"ab13619fb93e4115ad2570e2b6ecc731","r":1}' crossorigin="anonymous"></script>
-<script src="../../assets/js/gm-layout.js?v=gm22" defer></script>
+<script src="../../assets/js/gm-layout.js?v=gm52" defer></script>
 </body>
 </html>
 
