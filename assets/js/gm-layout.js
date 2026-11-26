@@ -46,8 +46,11 @@
   const noun = kind === "app" ? "Apps" : "Games"; // section labels: "Trending Apps" on app pages
 
   const tile = (g) => {
-    const first = g.local ? root + g.local.replace(/^\//, "") : g.logo;
-    const fb = g.local && g.logo ? ` onerror="this.onerror=null;this.src='${esc(g.logo)}'"` : "";
+    // Remote cover first, local copy only as the fallback: the local /assets/media/*.webp files are not on every server
+    // (a missing local file would be a 404 on every tile before the fallback kicks in).
+    const localSrc = g.local ? root + g.local.replace(/^\//, "") : "";
+    const first = g.logo || localSrc;
+    const fb = g.logo && localSrc ? ` onerror="this.onerror=null;this.src='${esc(localSrc)}'"` : "";
     return `<a href="${esc(g.href)}" title="${esc(g.name)}"><img src="${esc(first)}"${fb} alt="${esc(g.name)}" loading="lazy" decoding="async" referrerpolicy="no-referrer"></a>`;
   };
 
@@ -227,6 +230,22 @@
       const cats = {};
       keys.forEach((k, i) => (cats[k] = res[i]));
       const all = cats[kind];
+
+      // Image rescue: the page's own images point at a local mirror (img.gamepix.com/...) and then at /assets/media/*.webp.
+      // If neither exists on this server, fall back to the game's remote cover from the catalogue (matched by name).
+      const logoByName = new Map();
+      Object.keys(cats).forEach((k) => (cats[k] || []).forEach((g) => { if (g && g.logo) logoByName.set(String(g.name).trim().toLowerCase(), g.logo); }));
+      const rescueImg = (img) => {
+        if (!img || img.dataset.gmRescued) return;
+        if ((img.currentSrc || img.src || "").indexOf("/assets/media/") < 0) return;
+        const remote = logoByName.get(String(img.alt || "").trim().toLowerCase());
+        if (!remote) return;
+        img.dataset.gmRescued = "1";
+        img.removeAttribute("srcset");
+        img.src = remote;
+      };
+      document.addEventListener("error", (e) => { if (e.target && e.target.tagName === "IMG") rescueImg(e.target); }, true);
+      document.querySelectorAll("img").forEach((img) => { if (img.complete && img.naturalWidth === 0) rescueImg(img); });
       const me = all.find((g) => g.slug.toLowerCase() === current);
       const list = all.filter((g) => g.slug.toLowerCase() !== current);
       if (list.length < 8) return;
@@ -305,8 +324,9 @@
             a.title = g.name;
             const im = a.querySelector("img");
             im.alt = g.name;
-            im.onerror = function () { this.onerror = null; this.src = g.logo; };
-            im.src = g.local ? root + g.local.replace(/^\//, "") : g.logo;
+            const localSrc = g.local ? root + g.local.replace(/^\//, "") : "";
+            im.onerror = function () { this.onerror = null; if (localSrc) this.src = localSrc; };
+            im.src = g.logo || localSrc;
             a.style.opacity = "1";
           }, 400 + i * 40);
         });

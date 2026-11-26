@@ -1,0 +1,31 @@
+{
+  "id": "/playgames/just-golf/play/",
+  "name": "Just Golf - Pokozo",
+  "short_name": "Just Golf",
+  "description": "Play Just Golf instantly on Pokozo.",
+  "start_url": "/playgames/just-golf/play/",
+  "scope": "/playgames/just-golf/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eef8f9",
+  "theme_color": "#eef8f9",
+  "categories": [
+    "games",
+    "entertainment",
+    "sports"
+  ],
+  "icons": [
+    {
+      "src": "/assets/pwa-icons/featured-playgames/just-golf-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/logos/featured-playgames/just-golf.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
